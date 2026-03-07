@@ -50,6 +50,18 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "is_account_expired", nullable = false)
+    private Boolean isAccountExpired = false;
+
+    @Column(name = "is_account_locked", nullable = false)
+    private Boolean isAccountLocked = false;
+
+    @Column(name = "is_credentials_expired", nullable = false)
+    private Boolean isCredentialsExpired = false;
+
+    @Column(name = "is_disabled", nullable = false)
+    private Boolean isDisabled = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -100,6 +112,18 @@ public class User {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public Boolean getIsAccountExpired() { return isAccountExpired; }
+    public void setIsAccountExpired(Boolean isAccountExpired) { this.isAccountExpired = isAccountExpired; }
+
+    public Boolean getIsAccountLocked() { return isAccountLocked; }
+    public void setIsAccountLocked(Boolean isAccountLocked) { this.isAccountLocked = isAccountLocked; }
+
+    public Boolean getIsCredentialsExpired() { return isCredentialsExpired; }
+    public void setIsCredentialsExpired(Boolean isCredentialsExpired) { this.isCredentialsExpired = isCredentialsExpired; }
+
+    public Boolean getIsDisabled() { return isDisabled; }
+    public void setIsDisabled(Boolean isDisabled) { this.isDisabled = isDisabled; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -22,15 +22,28 @@ public class UserDetailsImpl implements UserDetails {
     private String password;
 
     private Boolean isActive;
+    private Boolean isAccountExpired;
+    private Boolean isAccountLocked;
+    private Boolean isCredentialsExpired;
+    private Boolean isDisabled;
     private Collection<? extends GrantedAuthority> authorities;
 
     public UserDetailsImpl(Long id, String username, String email, String password,
-                           Boolean isActive, Collection<? extends GrantedAuthority> authorities) {
+                           Boolean isActive,
+                           Boolean isAccountExpired,
+                           Boolean isAccountLocked,
+                           Boolean isCredentialsExpired,
+                           Boolean isDisabled,
+                           Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
         this.isActive = isActive;
+        this.isAccountExpired = isAccountExpired;
+        this.isAccountLocked = isAccountLocked;
+        this.isCredentialsExpired = isCredentialsExpired;
+        this.isDisabled = isDisabled;
         this.authorities = authorities;
     }
 
@@ -45,6 +58,10 @@ public class UserDetailsImpl implements UserDetails {
                 user.getEmail(),
                 user.getPassword(),
                 user.getIsActive(),
+                user.getIsAccountExpired(),
+                user.getIsAccountLocked(),
+                user.getIsCredentialsExpired(),
+                user.getIsDisabled(),
                 authorities);
     }
 
@@ -61,14 +78,14 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public String getUsername() { return username; }
     @Override
-    public boolean isAccountNonExpired() { return true; }
+    public boolean isAccountNonExpired() { return !Boolean.TRUE.equals(isAccountExpired); }
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() { return !Boolean.TRUE.equals(isAccountLocked); }
     @Override
-    public boolean isCredentialsNonExpired() { return true; }
+    public boolean isCredentialsNonExpired() { return !Boolean.TRUE.equals(isCredentialsExpired); }
     @Override
     public boolean isEnabled() {
-        return isActive != null ? isActive : true;
+        return Boolean.TRUE.equals(isActive) && !Boolean.TRUE.equals(isDisabled);
     }
 
     @Override
