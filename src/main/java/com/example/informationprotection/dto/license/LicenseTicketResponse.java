@@ -1,30 +1,16 @@
 package com.example.informationprotection.dto.license;
 
-import java.time.LocalDateTime;
-
 public class LicenseTicketResponse {
-    private Long licenseId;
-    private Long productId;
-    private LocalDateTime expiration;
-    private String signature;
+    private final Ticket ticket;
+    private final String signature;
 
-    public LicenseTicketResponse(Long licenseId, Long productId, LocalDateTime expiration, String signature) {
-        this.licenseId = licenseId;
-        this.productId = productId;
-        this.expiration = expiration;
+    public LicenseTicketResponse(Ticket ticket, String signature) {
+        this.ticket = ticket;
         this.signature = signature;
     }
 
-    public Long getLicenseId() {
-        return licenseId;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public LocalDateTime getExpiration() {
-        return expiration;
+    public Ticket getTicket() {
+        return ticket;
     }
 
     public String getSignature() {

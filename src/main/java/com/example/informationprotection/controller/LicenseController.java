@@ -5,6 +5,7 @@ import com.example.informationprotection.dto.license.CheckLicenseRequest;
 import com.example.informationprotection.dto.license.CreateLicenseRequest;
 import com.example.informationprotection.dto.license.LicenseResponse;
 import com.example.informationprotection.dto.license.LicenseTicketResponse;
+import com.example.informationprotection.dto.license.RenewLicenseRequest;
 import com.example.informationprotection.service.license.ApplicationUserService;
 import com.example.informationprotection.service.license.LicenseService;
 import jakarta.validation.Valid;
@@ -38,6 +39,17 @@ public class LicenseController {
         Long adminId = applicationUserService.resolveUserId(authentication);
         LicenseResponse response = licenseService.createLicense(request, adminId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/admin/licenses/renew")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LicenseResponse> renewLicense(
+            @Valid @RequestBody RenewLicenseRequest request,
+            Authentication authentication
+    ) {
+        Long adminId = applicationUserService.resolveUserId(authentication);
+        LicenseResponse response = licenseService.renewLicense(request, adminId);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/user/licenses/check")

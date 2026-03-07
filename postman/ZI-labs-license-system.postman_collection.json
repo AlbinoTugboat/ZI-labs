@@ -10,18 +10,16 @@
 
     { "key": "adminUsername", "value": "admin" },
     { "key": "adminPassword", "value": "" },
-    { "key": "adminAccessToken", "value": "" },
-    { "key": "adminRefreshToken", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
 
     { "key": "userUsername", "value": "user1" },
     { "key": "userPassword", "value": "" },
-    { "key": "userAccessToken", "value": "" },
-    { "key": "userRefreshToken", "value": "" },
-
     { "key": "productId", "value": "1" },
     { "key": "licenseTypeId", "value": "1" },
     { "key": "ownerId", "value": "2" },
     { "key": "deviceCount", "value": "2" },
+    { "key": "renewalDays", "value": "30" },
 
     { "key": "deviceMac1", "value": "AA:BB:CC:DD:EE:01" },
     { "key": "deviceName1", "value": "Laptop-User1" },
@@ -82,8 +80,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "var json = pm.response.json();",
-                  "pm.collectionVariables.set('adminAccessToken', json.accessToken);",
-                  "pm.collectionVariables.set('adminRefreshToken', json.refreshToken);"
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
                 ],
                 "type": "text/javascript"
               }
@@ -112,8 +110,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "var json = pm.response.json();",
-                  "pm.collectionVariables.set('userAccessToken', json.accessToken);",
-                  "pm.collectionVariables.set('userRefreshToken', json.refreshToken);"
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
                 ],
                 "type": "text/javascript"
               }
@@ -129,7 +127,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{userRefreshToken}}\"\n}"
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
             "url": "{{baseUrl}}/api/auth/refresh"
           },
@@ -142,8 +140,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "var json = pm.response.json();",
-                  "pm.collectionVariables.set('userAccessToken', json.accessToken);",
-                  "pm.collectionVariables.set('userRefreshToken', json.refreshToken);"
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
                 ],
                 "type": "text/javascript"
               }
@@ -155,7 +153,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": "{{baseUrl}}/api/user/me"
           },
@@ -178,7 +176,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": "{{baseUrl}}/api/admin/ping"
           },
@@ -201,7 +199,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": "{{baseUrl}}/api/admin/ping"
           },
@@ -230,7 +228,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -256,12 +254,40 @@
           ]
         },
         {
+          "name": "Renew License (ADMIN, 200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licenseId\": {{licenseId}},\n  \"additionalDays\": {{renewalDays}}\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/licenses/renew"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Activate License on Device #1 (USER, 200)",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -279,7 +305,7 @@
                   "});",
                   "var json = pm.response.json();",
                   "pm.collectionVariables.set('ticketSignature', json.signature);",
-                  "pm.collectionVariables.set('ticketExpiration', json.expiration);"
+                  "pm.collectionVariables.set('ticketExpiration', json.ticket.licenseExpirationDate);"
                 ],
                 "type": "text/javascript"
               }
@@ -292,7 +318,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -320,7 +346,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -348,7 +374,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -381,7 +407,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -409,7 +435,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -437,7 +463,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -465,7 +491,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -495,7 +521,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -523,7 +549,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -551,7 +577,7 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -577,3 +603,5 @@
     }
   ]
 }
+
+

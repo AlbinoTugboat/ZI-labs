@@ -5,6 +5,8 @@ import com.example.informationprotection.dto.license.CheckLicenseRequest;
 import com.example.informationprotection.dto.license.CreateLicenseRequest;
 import com.example.informationprotection.dto.license.LicenseResponse;
 import com.example.informationprotection.dto.license.LicenseTicketResponse;
+import com.example.informationprotection.dto.license.RenewLicenseRequest;
+import com.example.informationprotection.dto.license.Ticket;
 import com.example.informationprotection.entity.User;
 import com.example.informationprotection.entity.license.Device;
 import com.example.informationprotection.entity.license.DeviceLicense;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +97,47 @@ public class LicenseService {
         return toResponse(saved);
     }
 
+    @Transactional
+    public LicenseResponse renewLicense(RenewLicenseRequest request, Long adminId) {
+        User admin = applicationUserService.getActiveUserOrFail(adminId);
+        License license = licenseRepository.findById(request.getLicenseId())
+                .orElseThrow(() -> new NotFoundException("License not found"));
+
+        if (license.isBlocked()) {
+            throw new ConflictException("License is blocked");
+        }
+
+        if (license.getProduct().isBlocked()) {
+            throw new ConflictException("Product is blocked");
+        }
+
+        Integer defaultDuration = license.getType().getDefaultDurationInDays();
+        if (defaultDuration == null || defaultDuration < 1) {
+            throw new IllegalArgumentException("License type duration must be > 0");
+        }
+
+        int additionalDays = request.getAdditionalDays() == null
+                ? defaultDuration
+                : request.getAdditionalDays();
+
+        if (additionalDays < 1) {
+            throw new IllegalArgumentException("additionalDays must be >= 1");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime currentEndingDate = license.getEndingDate();
+        LocalDateTime baseDate = (currentEndingDate != null && currentEndingDate.isAfter(now))
+                ? currentEndingDate
+                : now;
+
+        license.setEndingDate(baseDate.plusDays(additionalDays));
+        License saved = licenseRepository.save(license);
+
+        saveHistory(saved, admin, LicenseHistoryStatus.RENEWED, "License renewed for " + additionalDays + " day(s)");
+
+        return toResponse(saved);
+    }
+
     @Transactional(readOnly = true)
     public LicenseTicketResponse checkLicense(CheckLicenseRequest request, Long userId) {
         User user = applicationUserService.getActiveUserOrFail(userId);
@@ -116,7 +160,7 @@ public class LicenseService {
 
         validateLicenseRules(license, user);
 
-        return buildTicket(license);
+        return buildTicket(license, device);
     }
 
     @Transactional
@@ -152,7 +196,7 @@ public class LicenseService {
         }
 
         validateLicenseRules(license, user);
-        return buildTicket(license);
+        return buildTicket(license, device);
     }
 
     private void activateFirstTime(License license, User user, Device device, LocalDateTime now) {
@@ -241,22 +285,33 @@ public class LicenseService {
         applicationUserService.ensureAccountActive(user);
     }
 
-    private LicenseTicketResponse buildTicket(License license) {
+    private LicenseTicketResponse buildTicket(License license, Device device) {
+        LocalDateTime serverDate = LocalDateTime.now();
+        long ticketLifetimeSeconds = Math.max(0, Duration.between(serverDate, license.getEndingDate()).getSeconds());
+
+        Ticket ticket = new Ticket(
+                serverDate,
+                ticketLifetimeSeconds,
+                license.getFirstActivationDate(),
+                license.getEndingDate(),
+                license.getUser().getId(),
+                device.getId(),
+                license.isBlocked()
+        );
+
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("license_id", license.getId());
-        payload.put("product_id", license.getProduct().getId());
-        payload.put("expiration", license.getEndingDate().toString());
-        payload.put("issued_at", LocalDateTime.now().toString());
+        payload.put("server_date", ticket.getServerDate().toString());
+        payload.put("ticket_lifetime_seconds", ticket.getTicketLifetimeSeconds());
+        payload.put("license_activation_date", ticket.getLicenseActivationDate().toString());
+        payload.put("license_expiration_date", ticket.getLicenseExpirationDate().toString());
+        payload.put("user_id", ticket.getUserId());
+        payload.put("device_id", ticket.getDeviceId());
+        payload.put("license_blocked", ticket.isLicenseBlocked());
 
         byte[] canonicalBytes = canonicalizationService.canonicalize(payload);
         String signature = ticketSignatureService.sign(canonicalBytes);
 
-        return new LicenseTicketResponse(
-                license.getId(),
-                license.getProduct().getId(),
-                license.getEndingDate(),
-                signature
-        );
+        return new LicenseTicketResponse(ticket, signature);
     }
 
     private LicenseResponse toResponse(License license) {
