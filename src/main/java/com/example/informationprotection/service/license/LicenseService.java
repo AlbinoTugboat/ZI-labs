@@ -1,6 +1,8 @@
 package com.example.informationprotection.service.license;
 
 import com.example.informationprotection.dto.license.ActivateLicenseRequest;
+import com.example.informationprotection.dto.license.ActivatedDeviceResponse;
+import com.example.informationprotection.dto.license.AdminLicenseDetailsResponse;
 import com.example.informationprotection.dto.license.CheckLicenseRequest;
 import com.example.informationprotection.dto.license.CreateLicenseRequest;
 import com.example.informationprotection.dto.license.LicenseResponse;
@@ -25,8 +27,10 @@ import com.example.informationprotection.repository.license.LicenseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -199,6 +203,35 @@ public class LicenseService {
         return buildTicket(license, device);
     }
 
+    @Transactional(readOnly = true)
+    public List<AdminLicenseDetailsResponse> getAllLicensesWithDevices() {
+        List<License> licenses = licenseRepository.findAllForAdminView();
+        if (licenses.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> licenseIds = licenses.stream()
+                .map(License::getId)
+                .toList();
+
+        List<DeviceLicense> allDeviceLicenses = deviceLicenseRepository.findAllByLicenseIdsWithDevice(licenseIds);
+        Map<Long, List<DeviceLicense>> deviceLicensesByLicenseId = new LinkedHashMap<>();
+        for (DeviceLicense deviceLicense : allDeviceLicenses) {
+            Long licenseId = deviceLicense.getLicense().getId();
+            deviceLicensesByLicenseId
+                    .computeIfAbsent(licenseId, ignored -> new ArrayList<>())
+                    .add(deviceLicense);
+        }
+
+        List<AdminLicenseDetailsResponse> response = new ArrayList<>(licenses.size());
+        for (License license : licenses) {
+            List<DeviceLicense> linkedDevices = deviceLicensesByLicenseId.getOrDefault(license.getId(), List.of());
+            response.add(toAdminDetailsResponse(license, linkedDevices));
+        }
+
+        return response;
+    }
+
     private void activateFirstTime(License license, User user, Device device, LocalDateTime now) {
         int durationInDays = license.getType().getDefaultDurationInDays() == null
                 ? 0
@@ -326,6 +359,44 @@ public class LicenseService {
                 license.getEndingDate(),
                 license.isBlocked(),
                 license.getDescription()
+        );
+    }
+
+    private AdminLicenseDetailsResponse toAdminDetailsResponse(License license, List<DeviceLicense> deviceLicenses) {
+        Long userId = license.getUser() == null ? null : license.getUser().getId();
+        String username = license.getUser() == null ? null : license.getUser().getUsername();
+
+        List<ActivatedDeviceResponse> devices = new ArrayList<>(deviceLicenses.size());
+        for (DeviceLicense deviceLicense : deviceLicenses) {
+            Device device = deviceLicense.getDevice();
+            devices.add(new ActivatedDeviceResponse(
+                    device.getId(),
+                    device.getName(),
+                    device.getMacAddress(),
+                    device.getUser().getId(),
+                    device.getUser().getUsername(),
+                    deviceLicense.getActivationDate()
+            ));
+        }
+
+        return new AdminLicenseDetailsResponse(
+                license.getId(),
+                license.getCode(),
+                license.getOwner().getId(),
+                license.getOwner().getUsername(),
+                userId,
+                username,
+                license.getProduct().getId(),
+                license.getProduct().getName(),
+                license.getType().getId(),
+                license.getType().getName(),
+                license.getType().getDefaultDurationInDays(),
+                license.getDeviceCount(),
+                license.getFirstActivationDate(),
+                license.getEndingDate(),
+                license.isBlocked(),
+                license.getDescription(),
+                devices
         );
     }
 

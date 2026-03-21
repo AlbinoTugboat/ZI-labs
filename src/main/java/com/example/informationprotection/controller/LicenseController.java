@@ -1,6 +1,7 @@
 package com.example.informationprotection.controller;
 
 import com.example.informationprotection.dto.license.ActivateLicenseRequest;
+import com.example.informationprotection.dto.license.AdminLicenseDetailsResponse;
 import com.example.informationprotection.dto.license.CheckLicenseRequest;
 import com.example.informationprotection.dto.license.CreateLicenseRequest;
 import com.example.informationprotection.dto.license.LicenseResponse;
@@ -13,10 +14,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -28,6 +32,13 @@ public class LicenseController {
     public LicenseController(LicenseService licenseService, ApplicationUserService applicationUserService) {
         this.licenseService = licenseService;
         this.applicationUserService = applicationUserService;
+    }
+
+    @GetMapping("/admin/licenses")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AdminLicenseDetailsResponse>> getAllLicenses() {
+        List<AdminLicenseDetailsResponse> response = licenseService.getAllLicensesWithDevices();
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/admin/licenses")
