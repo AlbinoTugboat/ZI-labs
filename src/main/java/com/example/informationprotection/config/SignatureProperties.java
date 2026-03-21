@@ -13,6 +13,7 @@ public class SignatureProperties {
     private String keyAlias;
     private String keyPassword;
     private String algorithm = "SHA256withRSA";
+    private boolean failFast = true;
 
     public String getKeyStorePath() {
         return keyStorePath;
@@ -60,5 +61,13 @@ public class SignatureProperties {
 
     public void setAlgorithm(String algorithm) {
         this.algorithm = algorithm;
+    }
+
+    public boolean isFailFast() {
+        return failFast;
+    }
+
+    public void setFailFast(boolean failFast) {
+        this.failFast = failFast;
     }
 }

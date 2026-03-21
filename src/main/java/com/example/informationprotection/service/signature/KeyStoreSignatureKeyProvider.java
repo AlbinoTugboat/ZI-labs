@@ -1,6 +1,7 @@
 package com.example.informationprotection.service.signature;
 
 import com.example.informationprotection.config.SignatureProperties;
+import jakarta.annotation.PostConstruct;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -10,9 +11,12 @@ import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 
@@ -27,6 +31,13 @@ public class KeyStoreSignatureKeyProvider implements SignatureKeyProvider {
     public KeyStoreSignatureKeyProvider(SignatureProperties signatureProperties, ResourceLoader resourceLoader) {
         this.signatureProperties = signatureProperties;
         this.resourceLoader = resourceLoader;
+    }
+
+    @PostConstruct
+    public void warmUpOnStartup() {
+        if (signatureProperties.isFailFast()) {
+            getOrLoad();
+        }
     }
 
     @Override
@@ -92,10 +103,17 @@ public class KeyStoreSignatureKeyProvider implements SignatureKeyProvider {
             return new LoadedKeyMaterial(alias, privateKey, x509Certificate.getPublicKey(), x509Certificate);
         } catch (IllegalStateException ex) {
             throw ex;
+        } catch (UnrecoverableKeyException ex) {
+            throw new IllegalStateException(
+                    "SIGNATURE_KEY_PASSWORD_INVALID: cannot decrypt key for alias '" + signatureProperties.getKeyAlias() + "'",
+                    ex
+            );
+        } catch (CertificateException | NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: cannot parse keystore '" + keyStorePath + "'", ex);
         } catch (IOException ex) {
-            throw new IllegalStateException("SIGNATURE_KEYSTORE_ACCESS_ERROR: cannot access keystore", ex);
+            throw mapIoException(ex, keyStorePath);
         } catch (GeneralSecurityException ex) {
-            throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: cannot load signature keys", ex);
+            throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: cannot load signature keys from '" + keyStorePath + "'", ex);
         }
     }
 
@@ -106,7 +124,10 @@ public class KeyStoreSignatureKeyProvider implements SignatureKeyProvider {
 
         Resource resource = resourceLoader.getResource(normalizedPath);
         if (!resource.exists()) {
-            throw new IllegalStateException("SIGNATURE_KEYSTORE_ACCESS_ERROR: keystore file not found");
+            throw new IllegalStateException("SIGNATURE_KEYSTORE_NOT_FOUND: keystore file not found at '" + normalizedPath + "'");
+        }
+        if (!resource.isReadable()) {
+            throw new IllegalStateException("SIGNATURE_KEYSTORE_UNREADABLE: keystore file is not readable at '" + normalizedPath + "'");
         }
         return resource.getInputStream();
     }
@@ -147,6 +168,20 @@ public class KeyStoreSignatureKeyProvider implements SignatureKeyProvider {
             throw new IllegalStateException(errorMessage);
         }
         return value;
+    }
+
+    private IllegalStateException mapIoException(IOException ex, String keyStorePath) {
+        String message = ex.getMessage();
+        if (message != null) {
+            String lowered = message.toLowerCase();
+            if (lowered.contains("password") || lowered.contains("keystore was tampered")) {
+                return new IllegalStateException(
+                        "SIGNATURE_KEYSTORE_PASSWORD_INVALID: cannot open keystore '" + keyStorePath + "'",
+                        ex
+                );
+            }
+        }
+        return new IllegalStateException("SIGNATURE_KEYSTORE_ACCESS_ERROR: cannot access keystore '" + keyStorePath + "'", ex);
     }
 
     private record LoadedKeyMaterial(
