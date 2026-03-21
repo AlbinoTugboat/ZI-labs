@@ -11,6 +11,11 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      SIGNATURE_KEYSTORE_BASE64: ${{ secrets.SIGNATURE_KEYSTORE_BASE64 }}
+      SIGNATURE_KEY_STORE_PASSWORD: ${{ secrets.SIGNATURE_KEY_STORE_PASSWORD }}
+      SIGNATURE_KEY_ALIAS: ${{ secrets.SIGNATURE_KEY_ALIAS }}
+      SIGNATURE_KEY_PASSWORD: ${{ secrets.SIGNATURE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -30,38 +35,38 @@ jobs:
           ls -la src/main/resources/ssl/
 
       - name: Restore signing keystore from GitHub secret (optional)
-        if: ${{ secrets.SIGNATURE_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' }}
         run: |
           mkdir -p .secrets
-          echo "${{ secrets.SIGNATURE_KEYSTORE_BASE64 }}" | base64 --decode > .secrets/signing-keystore.p12
+          echo "$SIGNATURE_KEYSTORE_BASE64" | base64 --decode > .secrets/signing-keystore.p12
           ls -la .secrets/
 
       - name: Build with Maven
         run: mvn clean compile -DskipTests
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          SIGNATURE_KEY_STORE_PATH: ${{ secrets.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
-          SIGNATURE_KEY_STORE_PASSWORD: ${{ secrets.SIGNATURE_KEY_STORE_PASSWORD }}
-          SIGNATURE_KEY_ALIAS: ${{ secrets.SIGNATURE_KEY_ALIAS }}
-          SIGNATURE_KEY_PASSWORD: ${{ secrets.SIGNATURE_KEY_PASSWORD }}
+          SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
+          SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
+          SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
+          SIGNATURE_KEY_PASSWORD: ${{ env.SIGNATURE_KEY_PASSWORD }}
 
       - name: Run tests
         run: mvn test
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          SIGNATURE_KEY_STORE_PATH: ${{ secrets.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
-          SIGNATURE_KEY_STORE_PASSWORD: ${{ secrets.SIGNATURE_KEY_STORE_PASSWORD }}
-          SIGNATURE_KEY_ALIAS: ${{ secrets.SIGNATURE_KEY_ALIAS }}
-          SIGNATURE_KEY_PASSWORD: ${{ secrets.SIGNATURE_KEY_PASSWORD }}
+          SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
+          SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
+          SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
+          SIGNATURE_KEY_PASSWORD: ${{ env.SIGNATURE_KEY_PASSWORD }}
 
       - name: Package application
         run: mvn package -DskipTests
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          SIGNATURE_KEY_STORE_PATH: ${{ secrets.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
-          SIGNATURE_KEY_STORE_PASSWORD: ${{ secrets.SIGNATURE_KEY_STORE_PASSWORD }}
-          SIGNATURE_KEY_ALIAS: ${{ secrets.SIGNATURE_KEY_ALIAS }}
-          SIGNATURE_KEY_PASSWORD: ${{ secrets.SIGNATURE_KEY_PASSWORD }}
+          SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
+          SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
+          SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
+          SIGNATURE_KEY_PASSWORD: ${{ env.SIGNATURE_KEY_PASSWORD }}
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
