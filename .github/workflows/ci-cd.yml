@@ -45,6 +45,7 @@ jobs:
         run: mvn clean compile -DskipTests
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
           SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
           SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
@@ -54,6 +55,7 @@ jobs:
         run: mvn test
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
           SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
           SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
@@ -63,6 +65,7 @@ jobs:
         run: mvn package -DskipTests
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SIGNATURE_KEY_STORE_PATH: ${{ env.SIGNATURE_KEYSTORE_BASE64 != '' && format('file:{0}/.secrets/signing-keystore.p12', github.workspace) || 'classpath:ssl/server.p12' }}
           SIGNATURE_KEY_STORE_PASSWORD: ${{ env.SIGNATURE_KEY_STORE_PASSWORD }}
           SIGNATURE_KEY_ALIAS: ${{ env.SIGNATURE_KEY_ALIAS }}
