@@ -59,6 +59,31 @@
           ]
         },
         {
+          "name": "Get Signing Certificate (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/public/signature/certificate"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Contains certificate PEM', function () {",
+                  "    pm.expect(json.certificatePem).to.include('BEGIN CERTIFICATE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Login Admin (save tokens)",
           "request": {
             "method": "POST",

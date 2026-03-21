@@ -319,6 +319,10 @@ public class LicenseService {
     }
 
     private LicenseTicketResponse buildTicket(License license, Device device) {
+        if (license.getFirstActivationDate() == null) {
+            throw new ConflictException("License activation date is missing");
+        }
+
         LocalDateTime serverDate = LocalDateTime.now();
         long ticketLifetimeSeconds = Math.max(0, Duration.between(serverDate, license.getEndingDate()).getSeconds());
 

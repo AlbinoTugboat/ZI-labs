@@ -1,38 +1,65 @@
 package com.example.informationprotection.service.license;
 
-import com.example.informationprotection.config.JwtProperties;
-import org.springframework.beans.factory.annotation.Value;
+import com.example.informationprotection.config.SignatureProperties;
+import com.example.informationprotection.service.signature.SignatureKeyProvider;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.Signature;
+import java.security.cert.X509Certificate;
 import java.util.Base64;
 
 @Service
 public class TicketSignatureService {
 
-    private static final String HMAC_SHA256 = "HmacSHA256";
-    private final byte[] secret;
+    private final SignatureKeyProvider signatureKeyProvider;
+    private final SignatureProperties signatureProperties;
 
-    public TicketSignatureService(
-            @Value("${license.ticket-secret:}") String ticketSecret,
-            JwtProperties jwtProperties
-    ) {
-        String effectiveSecret = (ticketSecret == null || ticketSecret.isBlank())
-                ? jwtProperties.getSecret()
-                : ticketSecret;
-        this.secret = effectiveSecret.getBytes(StandardCharsets.UTF_8);
+    public TicketSignatureService(SignatureKeyProvider signatureKeyProvider, SignatureProperties signatureProperties) {
+        this.signatureKeyProvider = signatureKeyProvider;
+        this.signatureProperties = signatureProperties;
     }
 
     public String sign(byte[] canonicalBytes) {
-        try {
-            Mac mac = Mac.getInstance(HMAC_SHA256);
-            mac.init(new SecretKeySpec(secret, HMAC_SHA256));
-            byte[] signatureBytes = mac.doFinal(canonicalBytes);
-            return Base64.getEncoder().encodeToString(signatureBytes);
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("CANONICALIZATION_FAILED: ticket signing failed");
+        if (canonicalBytes == null || canonicalBytes.length == 0) {
+            throw new IllegalArgumentException("SIGNATURE_INPUT_INVALID: canonical bytes are empty");
         }
+
+        try {
+            Signature signature = Signature.getInstance(signatureProperties.getAlgorithm());
+            signature.initSign(signatureKeyProvider.getPrivateKey());
+            signature.update(canonicalBytes);
+            byte[] signatureBytes = signature.sign();
+            return Base64.getEncoder().encodeToString(signatureBytes);
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: ticket signing failed", ex);
+        }
+    }
+
+    public boolean verify(byte[] canonicalBytes, String base64Signature) {
+        if (canonicalBytes == null || canonicalBytes.length == 0) {
+            throw new IllegalArgumentException("SIGNATURE_INPUT_INVALID: canonical bytes are empty");
+        }
+        if (base64Signature == null || base64Signature.isBlank()) {
+            throw new IllegalArgumentException("SIGNATURE_INPUT_INVALID: signature is empty");
+        }
+
+        try {
+            byte[] signatureBytes = Base64.getDecoder().decode(base64Signature);
+            Signature signature = Signature.getInstance(signatureProperties.getAlgorithm());
+            signature.initVerify(signatureKeyProvider.getPublicKey());
+            signature.update(canonicalBytes);
+            return signature.verify(signatureBytes);
+        } catch (GeneralSecurityException | IllegalArgumentException ex) {
+            throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: ticket signature verification failed", ex);
+        }
+    }
+
+    public X509Certificate getSigningCertificate() {
+        return signatureKeyProvider.getCertificate();
+    }
+
+    public String getSigningKeyAlias() {
+        return signatureKeyProvider.getKeyAlias();
     }
 }
