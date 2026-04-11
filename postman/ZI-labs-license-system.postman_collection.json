@@ -31,7 +31,11 @@
     { "key": "ticketSignature", "value": "" },
     { "key": "ticketExpiration", "value": "" },
 
-    { "key": "singleDeviceLicenseCode", "value": "" }
+    { "key": "singleDeviceLicenseCode", "value": "" },
+
+    { "key": "signatureId", "value": "" },
+    { "key": "signatureSince", "value": "1970-01-01T00:00:00Z" },
+    { "key": "signatureDigitalSignature", "value": "" }
   ],
   "item": [
     {
@@ -667,6 +671,362 @@
                 "exec": [
                   "pm.test('Status is 404', function () {",
                   "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Malware Signatures",
+      "item": [
+        {
+          "name": "Create Signature (ADMIN, 201, save signatureId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threatName\": \"Trojan.Postman.Test\",\n  \"firstBytesHex\": \"0A0B0C0D\",\n  \"remainderHashHex\": \"AA11BB22CC33DD44\",\n  \"remainderLength\": 2048,\n  \"fileType\": \"exe\",\n  \"offsetStart\": 0,\n  \"offsetEnd\": 512\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/signatures"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Signature status is ACTUAL', function () {",
+                  "    pm.expect(json.status).to.eql('ACTUAL');",
+                  "});",
+                  "pm.collectionVariables.set('signatureId', json.id);",
+                  "pm.collectionVariables.set('signatureSince', json.updatedAt);",
+                  "pm.collectionVariables.set('signatureDigitalSignature', json.digitalSignatureBase64);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Signature (ADMIN, 200, signature recalculated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threatName\": \"Trojan.Postman.Test.V2\",\n  \"firstBytesHex\": \"0A0B0C0D\",\n  \"remainderHashHex\": \"AA11BB22CC33EE55\",\n  \"remainderLength\": 4096,\n  \"fileType\": \"dll\",\n  \"offsetStart\": 10,\n  \"offsetEnd\": 1024\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/signatures/{{signatureId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "var previousSignature = pm.collectionVariables.get('signatureDigitalSignature');",
+                  "if (previousSignature) {",
+                  "    pm.test('Digital signature was recalculated', function () {",
+                  "        pm.expect(json.digitalSignatureBase64).to.not.eql(previousSignature);",
+                  "    });",
+                  "}",
+                  "pm.collectionVariables.set('signatureSince', json.updatedAt);",
+                  "pm.collectionVariables.set('signatureDigitalSignature', json.digitalSignatureBase64);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Full Signatures (USER/ADMIN, 200, no DELETED)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/user/signatures"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Full list has no DELETED records', function () {",
+                  "    var hasDeleted = json.some(function (item) { return item.status === 'DELETED'; });",
+                  "    pm.expect(hasDeleted).to.eql(false);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Signatures by IDs (USER/ADMIN, 200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"{{signatureId}}\"\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/user/signatures/by-ids"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "var signatureId = pm.collectionVariables.get('signatureId');",
+                  "pm.test('Requested signature is returned', function () {",
+                  "    var found = json.some(function (item) { return item.id === signatureId; });",
+                  "    pm.expect(found).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Signature (ADMIN, 204 logical delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/signatures/{{signatureId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Increment Since Last Update (USER/ADMIN, includes DELETED)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/user/signatures/increment?since={{signatureSince}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "var signatureId = pm.collectionVariables.get('signatureId');",
+                  "var found = json.find(function (item) { return item.id === signatureId; });",
+                  "pm.test('Deleted signature is present in increment', function () {",
+                  "    pm.expect(found).to.exist;",
+                  "    pm.expect(found.status).to.eql('DELETED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Signature History (ADMIN, 200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/signatures/{{signatureId}}/history"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('History contains at least one version', function () {",
+                  "    pm.expect(json.length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Signature Audit (ADMIN, 200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/signatures/{{signatureId}}/audit"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Audit contains CREATE/UPDATE/DELETE entries', function () {",
+                  "    var text = JSON.stringify(json);",
+                  "    pm.expect(text).to.include('CREATE');",
+                  "    pm.expect(text).to.include('UPDATE');",
+                  "    pm.expect(text).to.include('DELETE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Binary Full Export (USER/ADMIN, 200 multipart/mixed)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Accept", "value": "multipart/mixed" }
+            ],
+            "url": "{{baseUrl}}/api/binary/signatures/full"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var contentType = (pm.response.headers.get('Content-Type') || '').toLowerCase();",
+                  "pm.test('Content-Type is multipart/mixed', function () {",
+                  "    pm.expect(contentType).to.include('multipart/mixed');",
+                  "    pm.expect(contentType).to.include('boundary=');",
+                  "});",
+                  "var body = pm.response.text();",
+                  "pm.test('Manifest and data parts are present', function () {",
+                  "    pm.expect(body).to.include('filename=\"manifest.bin\"');",
+                  "    pm.expect(body).to.include('filename=\"data.bin\"');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Binary Increment Export (USER/ADMIN, 200 multipart/mixed)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Accept", "value": "multipart/mixed" }
+            ],
+            "url": "{{baseUrl}}/api/binary/signatures/increment?since={{signatureSince}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var contentType = (pm.response.headers.get('Content-Type') || '').toLowerCase();",
+                  "pm.test('Content-Type is multipart/mixed', function () {",
+                  "    pm.expect(contentType).to.include('multipart/mixed');",
+                  "    pm.expect(contentType).to.include('boundary=');",
+                  "});",
+                  "var body = pm.response.text();",
+                  "pm.test('Manifest and data parts are present', function () {",
+                  "    pm.expect(body).to.include('filename=\"manifest.bin\"');",
+                  "    pm.expect(body).to.include('filename=\"data.bin\"');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Binary Export by IDs (USER/ADMIN, 200 multipart/mixed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Accept", "value": "multipart/mixed" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"{{signatureId}}\"\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/binary/signatures/by-ids"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var contentType = (pm.response.headers.get('Content-Type') || '').toLowerCase();",
+                  "pm.test('Content-Type is multipart/mixed', function () {",
+                  "    pm.expect(contentType).to.include('multipart/mixed');",
+                  "    pm.expect(contentType).to.include('boundary=');",
+                  "});",
+                  "var body = pm.response.text();",
+                  "pm.test('Manifest and data parts are present', function () {",
+                  "    pm.expect(body).to.include('filename=\"manifest.bin\"');",
+                  "    pm.expect(body).to.include('filename=\"data.bin\"');",
                   "});"
                 ],
                 "type": "text/javascript"

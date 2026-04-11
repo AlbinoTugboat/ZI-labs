@@ -21,16 +21,19 @@ public class TicketSignatureService {
     }
 
     public String sign(byte[] canonicalBytes) {
-        if (canonicalBytes == null || canonicalBytes.length == 0) {
+        return Base64.getEncoder().encodeToString(signRaw(canonicalBytes));
+    }
+
+    public byte[] signRaw(byte[] payloadBytes) {
+        if (payloadBytes == null || payloadBytes.length == 0) {
             throw new IllegalArgumentException("SIGNATURE_INPUT_INVALID: canonical bytes are empty");
         }
 
         try {
             Signature signature = Signature.getInstance(signatureProperties.getAlgorithm());
             signature.initSign(signatureKeyProvider.getPrivateKey());
-            signature.update(canonicalBytes);
-            byte[] signatureBytes = signature.sign();
-            return Base64.getEncoder().encodeToString(signatureBytes);
+            signature.update(payloadBytes);
+            return signature.sign();
         } catch (GeneralSecurityException ex) {
             throw new IllegalStateException("SIGNATURE_CRYPTO_ERROR: ticket signing failed", ex);
         }
