@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -49,8 +50,13 @@ class TicketSignatureServiceTest {
         byte[] canonicalTwo = canonicalizationService.canonicalize(payloadOrderTwo);
         assertArrayEquals(canonicalOne, canonicalTwo);
 
+        byte[] rawSignature = ticketSignatureService.signRaw(canonicalOne);
+        assertNotNull(rawSignature);
+
         String signature = ticketSignatureService.sign(canonicalOne);
         assertNotNull(signature);
+        assertTrue(rawSignature.length > 0);
+        assertArrayEquals(rawSignature, Base64.getDecoder().decode(signature));
         assertTrue(ticketSignatureService.verify(canonicalOne, signature));
 
         Map<String, Object> tamperedPayload = new LinkedHashMap<>(payloadOrderOne);
