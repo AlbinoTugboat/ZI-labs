@@ -27,7 +27,6 @@ import com.example.informationprotection.repository.license.LicenseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +36,7 @@ import java.util.UUID;
 
 @Service
 public class LicenseService {
+    private static final long LICENSE_TICKET_LIFETIME_SECONDS = 60L;
 
     private final LicenseRepository licenseRepository;
     private final DeviceRepository deviceRepository;
@@ -324,7 +324,7 @@ public class LicenseService {
         }
 
         LocalDateTime serverDate = LocalDateTime.now();
-        long ticketLifetimeSeconds = Math.max(0, Duration.between(serverDate, license.getEndingDate()).getSeconds());
+        long ticketLifetimeSeconds = LICENSE_TICKET_LIFETIME_SECONDS;
 
         Ticket ticket = new Ticket(
                 serverDate,
