@@ -35,7 +35,9 @@
 
     { "key": "signatureId", "value": "" },
     { "key": "signatureSince", "value": "1970-01-01T00:00:00Z" },
-    { "key": "signatureDigitalSignature", "value": "" }
+    { "key": "signatureDigitalSignature", "value": "" },
+    { "key": "signatureSourceFilePath", "value": "" },
+    { "key": "signatureFilePresignedUrl", "value": "" }
   ],
   "item": [
     {
@@ -712,6 +714,79 @@
                   "pm.collectionVariables.set('signatureId', json.id);",
                   "pm.collectionVariables.set('signatureSince', json.updatedAt);",
                   "pm.collectionVariables.set('signatureDigitalSignature', json.digitalSignatureBase64);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Signature from File (ADMIN, 201, save signatureId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "{{signatureSourceFilePath}}" },
+                { "key": "threatName", "type": "text", "value": "Trojan.Postman.File" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/admin/signatures/from-file"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Signature status is ACTUAL', function () {",
+                  "    pm.expect(json.status).to.eql('ACTUAL');",
+                  "});",
+                  "pm.collectionVariables.set('signatureId', json.id);",
+                  "pm.collectionVariables.set('signatureSince', json.updatedAt);",
+                  "pm.collectionVariables.set('signatureDigitalSignature', json.digitalSignatureBase64);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Signature Source File Pre-Signed URLs (ADMIN, 200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"{{signatureId}}\"\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/signatures/files/pre-signed-urls"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test('Response has at least one URL', function () {",
+                  "    pm.expect(Array.isArray(json)).to.eql(true);",
+                  "    pm.expect(json.length).to.be.greaterThan(0);",
+                  "    pm.expect(json[0].url).to.be.a('string');",
+                  "    pm.expect(json[0].url.length).to.be.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('signatureFilePresignedUrl', json[0].url);"
                 ],
                 "type": "text/javascript"
               }
